@@ -5,11 +5,13 @@ export default function AdminLogin() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -21,10 +23,10 @@ export default function AdminLogin() {
         localStorage.setItem('admin_token', data.data.token);
         navigate('/admin/dashboard');
       } else {
-        alert('登录失败，权限不足或密码错误');
+        setError('登录失败，权限不足或密码错误');
       }
     } catch (err) {
-      alert('登录失败，请重试');
+      setError('登录失败，请重试');
     } finally {
       setLoading(false);
     }
@@ -37,6 +39,12 @@ export default function AdminLogin() {
           <h1 className="text-2xl font-bold text-[#1677ff]">岛浮跑单联盟后台</h1>
           <p className="text-gray-500 mt-2">管理员登录</p>
         </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 text-red-600 border border-red-200 rounded-lg text-sm text-center">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div>

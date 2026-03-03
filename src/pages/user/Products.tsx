@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Search, RefreshCw, Copy, Link as LinkIcon } from 'lucide-react';
+import { Search, RefreshCw, Copy, Link as LinkIcon, X } from 'lucide-react';
 
 export default function Products() {
   const { user } = useOutletContext<any>();
@@ -8,6 +8,12 @@ export default function Products() {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  
+  // Modal state
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
+  const [convertError, setConvertError] = useState('');
   
   // Filters
   const [category, setCategory] = useState('');
@@ -46,6 +52,8 @@ export default function Products() {
   }, [page, category, sort]);
 
   const handleConvert = async (product: any, type: 'all' | 'link') => {
+    setIsConverting(true);
+    setConvertError('');
     const token = localStorage.getItem('token');
     try {
       const res = await fetch('/api/products/convert', {
@@ -60,9 +68,14 @@ export default function Products() {
       if (data.code === 200) {
         navigator.clipboard.writeText(data.data.content);
         alert('复制成功！');
+        setIsModalOpen(false);
+      } else {
+        setConvertError(data.msg || '转链失败');
       }
     } catch (err) {
-      alert('转链失败');
+      setConvertError('转链服务异常，请重试');
+    } finally {
+      setIsConverting(false);
     }
   };
 
@@ -126,7 +139,7 @@ export default function Products() {
         ) : (
           products.map(product => (
             <div key={product.id} className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-              <div className="aspect-square bg-gray-100 relative">
+              <a href={`https://item.jd.com/${product.id}.html`} target="_blank" rel="noopener noreferrer" className="aspect-square bg-gray-100 relative block">
                 {product.image_url ? (
                   <img src={product.image_url} alt={product.title} className="w-full h-full object-cover" />
                 ) : (
@@ -135,7 +148,7 @@ export default function Products() {
                 <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
                   佣金 {product.commission_rate}%
                 </div>
-              </div>
+              </a>
               
               <div className="p-4 flex-1 flex flex-col">
                 <h3 className="font-medium text-gray-800 line-clamp-2 mb-2" title={product.title}>{product.title}</h3>
@@ -164,11 +177,15 @@ export default function Products() {
                   </div>
 
                   <button 
-                    onClick={() => handleConvert(product, 'all')}
+                    onClick={() => {
+                      setSelectedProduct(product);
+                      setIsModalOpen(true);
+                      setConvertError('');
+                    }}
                     className="w-full py-2 bg-[#1677ff] text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors flex items-center justify-center space-x-1"
                   >
                     <LinkIcon size={16} />
-                    <span>一键转链</span>
+                    <span>我要推广</span>
                   </button>
                 </div>
               </div>
@@ -198,6 +215,49 @@ export default function Products() {
             >
               下一页
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Promotion Modal */}
+      {isModalOpen && selectedProduct && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-gray-800">推广商品</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-500 hover:text-gray-700">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-sm text-gray-600 mb-2 line-clamp-2">{selectedProduct.title}</p>
+              {convertError && (
+                <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-200">
+                  {convertError}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => handleConvert(selectedProduct, 'all')}
+                disabled={isConverting}
+                className="w-full py-3 bg-[#1677ff] text-white rounded-lg font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
+              >
+                {isConverting ? <RefreshCw className="animate-spin" size={18} /> : <Copy size={18} />}
+                <span>一键转链（包含推广文案）</span>
+              </button>
+              
+              <button
+                onClick={() => handleConvert(selectedProduct, 'link')}
+                disabled={isConverting}
+                className="w-full py-3 bg-white border border-[#1677ff] text-[#1677ff] rounded-lg font-medium hover:bg-blue-50 transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
+              >
+                {isConverting ? <RefreshCw className="animate-spin" size={18} /> : <LinkIcon size={18} />}
+                <span>仅复制商品推广链接</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

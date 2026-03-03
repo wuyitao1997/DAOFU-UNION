@@ -17,6 +17,7 @@ export default function Users() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [ridInput, setRidInput] = useState('');
   const [rejectReason, setRejectReason] = useState('');
+  const [modalError, setModalError] = useState('');
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -43,8 +44,15 @@ export default function Users() {
   }, [page, status]);
 
   const handleApprove = async () => {
-    if (admin.role !== 'super_admin' && admin.role !== 'admin') return alert('无权限');
-    if (!ridInput) return alert('请输入RID');
+    setModalError('');
+    if (admin?.role !== 'super_admin' && admin?.role !== 'admin') {
+      setModalError('无权限');
+      return;
+    }
+    if (!ridInput) {
+      setModalError('请输入RID');
+      return;
+    }
 
     try {
       const token = localStorage.getItem('admin_token');
@@ -58,21 +66,27 @@ export default function Users() {
       });
       const data = await res.json();
       if (data.code === 200) {
-        alert('审核通过');
         setShowApproveModal(false);
         fetchUsers();
       } else {
-        alert(data.msg || '操作失败');
+        setModalError(data.msg || '操作失败');
       }
     } catch (err) {
       console.error(err);
-      alert('操作失败');
+      setModalError('操作失败，请重试');
     }
   };
 
   const handleReject = async () => {
-    if (admin.role !== 'super_admin') return alert('无权限');
-    if (!rejectReason) return alert('请输入驳回原因');
+    setModalError('');
+    if (admin?.role !== 'super_admin' && admin?.role !== 'admin') {
+      setModalError('无权限');
+      return;
+    }
+    if (!rejectReason) {
+      setModalError('请输入驳回原因');
+      return;
+    }
 
     try {
       const token = localStorage.getItem('admin_token');
@@ -86,27 +100,28 @@ export default function Users() {
       });
       const data = await res.json();
       if (data.code === 200) {
-        alert('已驳回');
         setShowRejectModal(false);
         fetchUsers();
       } else {
-        alert(data.msg || '操作失败');
+        setModalError(data.msg || '操作失败');
       }
     } catch (err) {
       console.error(err);
-      alert('操作失败');
+      setModalError('操作失败，请重试');
     }
   };
 
   const openApproveModal = (user: any) => {
     setSelectedUser(user);
     setRidInput('');
+    setModalError('');
     setShowApproveModal(true);
   };
 
   const openRejectModal = (user: any) => {
     setSelectedUser(user);
     setRejectReason('');
+    setModalError('');
     setShowRejectModal(true);
   };
 
@@ -212,11 +227,16 @@ export default function Users() {
                 <input
                   type="text"
                   value={ridInput}
-                  onChange={(e) => setRidInput(e.target.value)}
+                  onChange={(e) => { setRidInput(e.target.value); setModalError(''); }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1677ff] focus:border-transparent outline-none"
                   placeholder="请输入分配给该用户的RID"
                 />
               </div>
+              {modalError && (
+                <div className="text-sm text-red-500 bg-red-50 p-3 rounded-lg">
+                  {modalError}
+                </div>
+              )}
             </div>
             <div className="p-6 border-t bg-gray-50 flex justify-end space-x-3">
               <button onClick={() => setShowApproveModal(false)} className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100">取消</button>
@@ -242,12 +262,17 @@ export default function Users() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">驳回原因</label>
                 <textarea
                   value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
+                  onChange={(e) => { setRejectReason(e.target.value); setModalError(''); }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
                   placeholder="请输入驳回原因"
                   rows={3}
                 />
               </div>
+              {modalError && (
+                <div className="text-sm text-red-500 bg-red-50 p-3 rounded-lg">
+                  {modalError}
+                </div>
+              )}
             </div>
             <div className="p-6 border-t bg-gray-50 flex justify-end space-x-3">
               <button onClick={() => setShowRejectModal(false)} className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100">取消</button>

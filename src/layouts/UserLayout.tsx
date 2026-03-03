@@ -124,7 +124,7 @@ export default function UserLayout() {
 
         {/* Page Content */}
         <main className="flex-1 overflow-auto p-6">
-          <Outlet context={{ user }} />
+          <Outlet context={{ user, setUser }} />
         </main>
       </div>
     </div>

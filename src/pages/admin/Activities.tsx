@@ -8,6 +8,7 @@ export default function Activities() {
   const [total, setTotal] = useState(0);
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [modalError, setModalError] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     url: '',
@@ -44,6 +45,7 @@ export default function Activities() {
 
   const handleAddActivity = async (e: React.FormEvent) => {
     e.preventDefault();
+    setModalError('');
     try {
       const token = localStorage.getItem('admin_token');
       const payload = {
@@ -71,11 +73,11 @@ export default function Activities() {
         });
         fetchActivities();
       } else {
-        alert(data.msg);
+        setModalError(data.msg || '添加失败');
       }
     } catch (err) {
       console.error(err);
-      alert('添加失败');
+      setModalError('添加失败，请重试');
     }
   };
 
@@ -96,7 +98,7 @@ export default function Activities() {
             <span>刷新</span>
           </button>
           <button 
-            onClick={() => setShowAddModal(true)}
+            onClick={() => { setShowAddModal(true); setModalError(''); }}
             className="flex items-center space-x-2 px-4 py-2 bg-[#1677ff] text-white rounded-lg hover:bg-blue-600 transition-colors"
           >
             <Plus size={18} />
@@ -222,7 +224,12 @@ export default function Activities() {
                 </div>
               </div>
               <div className="pt-4 flex justify-end space-x-4 border-t">
-                <button type="button" onClick={() => setShowAddModal(false)} className="px-6 py-2 border rounded-lg text-gray-600 hover:bg-gray-50">取消</button>
+                {modalError && (
+                  <div className="flex-1 text-sm text-red-500 bg-red-50 p-2 rounded-lg flex items-center">
+                    {modalError}
+                  </div>
+                )}
+                <button type="button" onClick={() => { setShowAddModal(false); setModalError(''); }} className="px-6 py-2 border rounded-lg text-gray-600 hover:bg-gray-50">取消</button>
                 <button type="submit" className="px-6 py-2 bg-[#1677ff] text-white rounded-lg hover:bg-blue-600">提交</button>
               </div>
             </form>

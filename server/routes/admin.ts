@@ -30,9 +30,9 @@ router.use(checkAdmin);
 // Dashboard stats
 router.get('/dashboard', (req, res) => {
   const totalUsers = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
-  const pendingUsers = db.prepare('SELECT COUNT(*) as count FROM users WHERE status = "pending"').get().count;
+  const pendingUsers = db.prepare('SELECT COUNT(*) as count FROM users WHERE status = \'pending\'').get().count;
   const totalProducts = db.prepare('SELECT COUNT(*) as count FROM products').get().count;
-  const activeProducts = db.prepare('SELECT COUNT(*) as count FROM products WHERE status = "active"').get().count;
+  const activeProducts = db.prepare('SELECT COUNT(*) as count FROM products WHERE status = \'active\'').get().count;
   
   res.json({
     code: 200,
@@ -103,7 +103,7 @@ router.put('/users/:id/approve', (req, res) => {
     const { id } = req.params;
     const { rid } = req.body;
     
-    const stmt = db.prepare('UPDATE users SET status = "normal", rid = ? WHERE id = ?');
+    const stmt = db.prepare('UPDATE users SET status = \'normal\', rid = ? WHERE id = ?');
     stmt.run(rid, id);
     
     res.json({ code: 200, msg: 'User approved' });
@@ -120,7 +120,7 @@ router.put('/users/:id/reject', (req, res) => {
     const { id } = req.params;
     const { reason } = req.body;
     
-    const stmt = db.prepare('UPDATE users SET status = "rejected", reject_reason = ? WHERE id = ?');
+    const stmt = db.prepare('UPDATE users SET status = \'rejected\', reject_reason = ? WHERE id = ?');
     stmt.run(reason, id);
     
     res.json({ code: 200, msg: 'User rejected' });
@@ -139,7 +139,28 @@ router.get('/products/jd-info/:id', async (req, res) => {
     const $ = cheerio.load(html);
     const title = $('title').text().replace('【行情 报价 价格 评测】-京东', '').trim();
     
-    res.json({ code: 200, msg: 'Success', data: { title } });
+    // Try to find the main product image
+    let image_url = '';
+    const imgElement = $('#spec-img');
+    if (imgElement.length > 0) {
+      image_url = imgElement.attr('data-origin') || imgElement.attr('src') || '';
+      if (image_url && image_url.startsWith('//')) {
+        image_url = 'https:' + image_url;
+      }
+    }
+    
+    // Fallback if #spec-img is not found
+    if (!image_url) {
+       const metaImg = $('meta[property="og:image"]').attr('content');
+       if (metaImg) {
+         image_url = metaImg;
+         if (image_url.startsWith('//')) {
+           image_url = 'https:' + image_url;
+         }
+       }
+    }
+    
+    res.json({ code: 200, msg: 'Success', data: { title, image_url } });
   } catch (err) {
     console.error('Error fetching JD info:', err);
     res.status(500).json({ code: 500, msg: 'Failed to fetch JD info' });
@@ -171,14 +192,14 @@ router.get('/products', (req, res) => {
 });
 
 router.post('/products', (req, res) => {
-  const { id, title, shop_name, original_price, price, commission_rate, system_service_fee, start_time, end_time, memo, promotion_copy } = req.body;
+  const { id, title, shop_name, original_price, price, commission_rate, system_service_fee, start_time, end_time, memo, promotion_copy, image_url } = req.body;
   
   const stmt = db.prepare(`
-    INSERT INTO products (id, title, shop_name, original_price, price, commission_rate, system_service_fee, start_time, end_time, memo, source, promotion_copy)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', ?)
+    INSERT INTO products (id, title, shop_name, original_price, price, commission_rate, system_service_fee, start_time, end_time, memo, source, promotion_copy, image_url)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', ?, ?)
   `);
   
-  stmt.run(id, title, shop_name, original_price, price, commission_rate, system_service_fee, start_time, end_time, memo, promotion_copy);
+  stmt.run(id, title, shop_name, original_price, price, commission_rate, system_service_fee, start_time, end_time, memo, promotion_copy, image_url);
   
   res.json({ code: 200, msg: 'Product added' });
 });
@@ -186,15 +207,15 @@ router.post('/products', (req, res) => {
 router.put('/products/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { title, shop_name, original_price, price, commission_rate, system_service_fee, start_time, end_time, memo, promotion_copy } = req.body;
+    const { title, shop_name, original_price, price, commission_rate, system_service_fee, start_time, end_time, memo, promotion_copy, image_url } = req.body;
     
     const stmt = db.prepare(`
       UPDATE products 
-      SET title = ?, shop_name = ?, original_price = ?, price = ?, commission_rate = ?, system_service_fee = ?, start_time = ?, end_time = ?, memo = ?, promotion_copy = ?
+      SET title = ?, shop_name = ?, original_price = ?, price = ?, commission_rate = ?, system_service_fee = ?, start_time = ?, end_time = ?, memo = ?, promotion_copy = ?, image_url = ?
       WHERE id = ?
     `);
     
-    stmt.run(title, shop_name, original_price, price, commission_rate, system_service_fee, start_time, end_time, memo, promotion_copy, id);
+    stmt.run(title, shop_name, original_price, price, commission_rate, system_service_fee, start_time, end_time, memo, promotion_copy, image_url, id);
     
     res.json({ code: 200, msg: 'Product updated' });
   } catch (err: any) {
@@ -214,6 +235,30 @@ router.put('/products/:id/status', (req, res) => {
     res.json({ code: 200, msg: 'Product status updated' });
   } catch (err: any) {
     console.error('Error updating product status:', err);
+    res.status(500).json({ code: 500, msg: err.message });
+  }
+});
+
+router.delete('/products/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if product exists and is inactive
+    const product = db.prepare('SELECT status FROM products WHERE id = ?').get(id) as any;
+    if (!product) {
+      return res.status(404).json({ code: 404, msg: 'Product not found' });
+    }
+    
+    if (product.status !== 'inactive') {
+      return res.status(400).json({ code: 400, msg: 'Only inactive products can be deleted' });
+    }
+    
+    const stmt = db.prepare('DELETE FROM products WHERE id = ?');
+    stmt.run(id);
+    
+    res.json({ code: 200, msg: 'Product deleted successfully' });
+  } catch (err: any) {
+    console.error('Error deleting product:', err);
     res.status(500).json({ code: 500, msg: err.message });
   }
 });

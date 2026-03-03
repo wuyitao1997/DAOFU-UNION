@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 
 export default function Profile() {
-  const { user } = useOutletContext<any>();
+  const { user, setUser } = useOutletContext<any>();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     nickname: user?.nickname || '',
@@ -11,8 +11,11 @@ export default function Profile() {
     jd_union_key: user?.jd_union_key || '',
   });
 
+  const [successMessage, setSuccessMessage] = useState('');
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSuccessMessage('');
     try {
       const token = localStorage.getItem('token');
       const res = await fetch('/api/auth/profile', {
@@ -25,8 +28,8 @@ export default function Profile() {
       });
       const data = await res.json();
       if (data.code === 200) {
-        alert('提交成功，等待客服审核，审核通过后将短信通知');
-        window.location.reload();
+        setSuccessMessage('已提交申请，请等待审核，预计1-2个工作日内完成。');
+        setUser({ ...user, ...formData, status: 'pending' });
       } else {
         alert(data.msg);
       }
@@ -66,6 +69,12 @@ export default function Profile() {
       <div className="bg-blue-50 text-blue-600 p-4 rounded-lg mb-8 text-sm">
         <strong>核心提示：</strong> RID需联系客服申请，审核通过后才可使用系统功能。
       </div>
+
+      {successMessage && (
+        <div className="bg-green-50 text-green-700 p-4 rounded-lg mb-6 text-sm border border-green-200">
+          {successMessage}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>

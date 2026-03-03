@@ -8,6 +8,9 @@ export default function Products() {
   const [total, setTotal] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [modalError, setModalError] = useState('');
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -44,7 +47,8 @@ export default function Products() {
     start_time: '',
     end_time: '',
     memo: '',
-    promotion_copy: ''
+    promotion_copy: '',
+    image_url: ''
   });
 
   const handleIdChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,8 +62,12 @@ export default function Products() {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
-        if (data.code === 200 && data.data.title) {
-          setFormData(prev => ({ ...prev, title: data.data.title }));
+        if (data.code === 200 && data.data) {
+          setFormData(prev => ({ 
+            ...prev, 
+            title: data.data.title || prev.title,
+            image_url: data.data.image_url || prev.image_url
+          }));
         }
       } catch (err) {
         console.error('Failed to fetch JD info:', err);
@@ -69,6 +77,7 @@ export default function Products() {
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    setModalError('');
     try {
       const token = localStorage.getItem('admin_token');
       const url = editingProduct ? `/api/admin/products/${editingProduct.id}` : '/api/admin/products';
@@ -84,25 +93,25 @@ export default function Products() {
       });
       const data = await res.json();
       if (data.code === 200) {
-        alert(editingProduct ? '更新成功' : '添加成功');
         setShowAddModal(false);
         setEditingProduct(null);
         setFormData({
           id: '', title: '', shop_name: '', original_price: '', price: '', commission_rate: '',
-          system_service_fee: '', start_time: '', end_time: '', memo: '', promotion_copy: ''
+          system_service_fee: '', start_time: '', end_time: '', memo: '', promotion_copy: '', image_url: ''
         });
         fetchProducts();
       } else {
-        alert(data.msg);
+        setModalError(data.msg || (editingProduct ? '更新失败' : '添加失败'));
       }
     } catch (err) {
       console.error(err);
-      alert(editingProduct ? '更新失败' : '添加失败');
+      setModalError(editingProduct ? '更新失败，请重试' : '添加失败，请重试');
     }
   };
 
   const handleEdit = (product: any) => {
     setEditingProduct(product);
+    setModalError('');
     setFormData({
       id: product.id,
       title: product.title,
@@ -114,33 +123,42 @@ export default function Products() {
       start_time: product.start_time || '',
       end_time: product.end_time || '',
       memo: product.memo || '',
-      promotion_copy: product.promotion_copy || ''
+      promotion_copy: product.promotion_copy || '',
+      image_url: product.image_url || ''
     });
     setShowAddModal(true);
   };
 
   const handleToggleStatus = async (product: any) => {
-    if (!confirm(`确定要${product.status === 'active' ? '下架' : '上架'}该商品吗？`)) return;
+    setSelectedProduct(product);
+    setShowStatusModal(true);
+    setModalError('');
+  };
+
+  const confirmToggleStatus = async () => {
+    if (!selectedProduct) return;
     
     try {
       const token = localStorage.getItem('admin_token');
-      const res = await fetch(`/api/admin/products/${product.id}/status`, {
+      const res = await fetch(`/api/admin/products/${selectedProduct.id}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ status: product.status === 'active' ? 'inactive' : 'active' })
+        body: JSON.stringify({ status: selectedProduct.status === 'active' ? 'inactive' : 'active' })
       });
       const data = await res.json();
       if (data.code === 200) {
         fetchProducts();
+        setShowStatusModal(false);
+        setSelectedProduct(null);
       } else {
-        alert(data.msg);
+        setModalError(data.msg);
       }
     } catch (err) {
       console.error(err);
-      alert('操作失败');
+      setModalError('操作失败');
     }
   };
 
@@ -149,7 +167,7 @@ export default function Products() {
       <div className="bg-white p-6 rounded-xl shadow-sm flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-800">商品管理</h2>
         <div className="flex items-center space-x-4">
-          <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-[#1677ff] text-white rounded-lg flex items-center space-x-2 hover:bg-blue-600 transition-colors">
+          <button onClick={() => { setShowAddModal(true); setModalError(''); }} className="px-4 py-2 bg-[#1677ff] text-white rounded-lg flex items-center space-x-2 hover:bg-blue-600 transition-colors">
             <Plus size={18} />
             <span>手动提报商品</span>
           </button>
@@ -220,6 +238,44 @@ export default function Products() {
         )}
       </div>
 
+      {/* Status Confirmation Modal */}
+      {showStatusModal && selectedProduct && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">
+              确定要{selectedProduct.status === 'active' ? '下架' : '上架'}该商品吗？
+            </h3>
+            <p className="text-gray-600 mb-6">
+              商品ID: {selectedProduct.id} <br/>
+              商品标题: {selectedProduct.title}
+            </p>
+            {modalError && (
+              <div className="mb-4 p-3 bg-red-50 text-red-600 border border-red-200 rounded-lg text-sm">
+                {modalError}
+              </div>
+            )}
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowStatusModal(false);
+                  setSelectedProduct(null);
+                  setModalError('');
+                }}
+                className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmToggleStatus}
+                className={`px-4 py-2 text-white rounded-lg ${selectedProduct.status === 'active' ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}
+              >
+                确定{selectedProduct.status === 'active' ? '下架' : '上架'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Product Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -231,7 +287,7 @@ export default function Products() {
                 setEditingProduct(null);
                 setFormData({
                   id: '', title: '', shop_name: '', original_price: '', price: '', commission_rate: '',
-                  system_service_fee: '', start_time: '', end_time: '', memo: '', promotion_copy: ''
+                  system_service_fee: '', start_time: '', end_time: '', memo: '', promotion_copy: '', image_url: ''
                 });
               }} className="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
             </div>
@@ -274,17 +330,27 @@ export default function Products() {
                   <input type="datetime-local" value={formData.end_time} onChange={e => setFormData({...formData, end_time: e.target.value})} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-[#1677ff]" />
                 </div>
                 <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">图片链接</label>
+                  <input type="text" value={formData.image_url} onChange={e => setFormData({...formData, image_url: e.target.value})} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-[#1677ff]" placeholder="输入商品ID后自动获取，或手动输入" />
+                </div>
+                <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">推广文案</label>
                   <textarea value={formData.promotion_copy} onChange={e => setFormData({...formData, promotion_copy: e.target.value})} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-[#1677ff]" rows={3} placeholder="请输入推广文案，前台用户可见" />
                 </div>
               </div>
               <div className="pt-4 flex justify-end space-x-4 border-t">
+                {modalError && (
+                  <div className="flex-1 text-sm text-red-500 bg-red-50 p-2 rounded-lg flex items-center">
+                    {modalError}
+                  </div>
+                )}
                 <button type="button" onClick={() => {
                   setShowAddModal(false);
                   setEditingProduct(null);
+                  setModalError('');
                   setFormData({
                     id: '', title: '', shop_name: '', original_price: '', price: '', commission_rate: '',
-                    system_service_fee: '', start_time: '', end_time: '', memo: '', promotion_copy: ''
+                    system_service_fee: '', start_time: '', end_time: '', memo: '', promotion_copy: '', image_url: ''
                   });
                 }} className="px-6 py-2 border rounded-lg text-gray-600 hover:bg-gray-50">取消</button>
                 <button type="submit" className="px-6 py-2 bg-[#1677ff] text-white rounded-lg hover:bg-blue-600">提交</button>

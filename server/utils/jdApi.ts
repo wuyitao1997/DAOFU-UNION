@@ -1,50 +1,59 @@
 import crypto from 'crypto';
-import axios from 'axios';
 
-const APP_KEY = '3063ae2137fc178f64a10677c71f8db2';
-const SECRET_KEY = 'e340bb01536c428a970d596b3a0b65bd';
-const API_URL = 'https://router.jd.com/api';
-
-export function generateSign(method: string, timestamp: string, paramJson: string) {
-  const params: Record<string, string> = {
-    app_key: APP_KEY,
-    format: 'json',
+export async function callJdApi(method: string, paramJson: any, appKey: string, appSecret: string) {
+  // Get Beijing Time (UTC+8)
+  const now = new Date();
+  // now.getTime() is already UTC milliseconds since epoch
+  const beijingTime = new Date(now.getTime() + (3600000 * 8));
+  
+  const year = beijingTime.getUTCFullYear();
+  const month = String(beijingTime.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(beijingTime.getUTCDate()).padStart(2, '0');
+  const hours = String(beijingTime.getUTCHours()).padStart(2, '0');
+  const minutes = String(beijingTime.getUTCMinutes()).padStart(2, '0');
+  const seconds = String(beijingTime.getUTCSeconds()).padStart(2, '0');
+  
+  const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  
+  const sysParams: Record<string, string> = {
+    app_key: appKey,
     method,
-    param_json: paramJson,
-    sign_method: 'md5',
     timestamp,
+    format: 'json',
     v: '1.0',
+    sign_method: 'md5',
+    '360buy_param_json': JSON.stringify(paramJson)
   };
 
-  const sortedKeys = Object.keys(params).sort();
-  let str = SECRET_KEY;
-  for (const key of sortedKeys) {
-    str += key + params[key];
+  // 1. 参数按字母升序排列
+  const keys = Object.keys(sysParams).sort();
+  
+  // 2. 拼接参数名 + 值
+  let signStr = '';
+  for (const key of keys) {
+    signStr += key + sysParams[key];
   }
-  str += SECRET_KEY;
+  
+  // 3. 首尾加 appSecret
+  signStr = appSecret + signStr + appSecret;
+  
+  // 4. MD5 加密转大写
+  const sign = crypto.createHash('md5').update(signStr, 'utf8').digest('hex').toUpperCase();
+  
+  sysParams.sign = sign;
 
-  return crypto.createHash('md5').update(str).digest('hex').toUpperCase();
-}
-
-export async function callJdApi(method: string, paramJson: any) {
-  const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
-  const paramJsonStr = JSON.stringify(paramJson);
-  const sign = generateSign(method, timestamp, paramJsonStr);
-
-  const params = {
-    app_key: APP_KEY,
-    format: 'json',
-    method,
-    param_json: paramJsonStr,
-    sign_method: 'md5',
-    timestamp,
-    v: '1.0',
-    sign,
-  };
+  const queryParams = new URLSearchParams(sysParams);
+  const url = `https://api.jd.com/routerjson?${queryParams.toString()}`;
 
   try {
-    const response = await axios.get(API_URL, { params });
-    return response.data;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error('JD API Error:', error);
     throw error;
