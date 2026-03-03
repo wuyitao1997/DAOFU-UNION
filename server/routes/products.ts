@@ -97,16 +97,16 @@ router.post('/convert', async (req, res) => {
     } else {
       // Call JD API
       // Parse siteId as number to prevent NumberFormatException
-      const siteId = Number(user.jd_union_key);
-      if (isNaN(siteId)) {
-        return res.status(400).json({ code: 400, msg: '京东联盟有效key(siteId)必须是纯数字，请在个人中心修改' });
+      const siteId = Number(user.jd_union_id);
+      if (isNaN(siteId) || !user.jd_union_id) {
+        return res.status(400).json({ code: 400, msg: '京东联盟ID必须是纯数字，请在个人中心修改' });
       }
 
       const paramJson = {
         promotionCodeReq: {
           materialId: materialId,
           siteId: siteId,
-          ext1: user.jd_union_id
+          ext1: user.jd_union_key || user.jd_union_id
         }
       };
 
@@ -121,7 +121,7 @@ router.post('/convert', async (req, res) => {
         if (jdRes.error_response) {
            return res.status(500).json({ code: 500, msg: `京东接口报错: ${jdRes.error_response.zh_desc || jdRes.error_response.en_desc}` });
         }
-        return res.status(500).json({ code: 500, msg: '转链失败，京东接口返回异常' });
+        return res.status(500).json({ code: 500, msg: `转链失败，京东接口返回异常: ${JSON.stringify(jdRes)}` });
       }
 
       const resultStr = jdRes[responseKey].result;
