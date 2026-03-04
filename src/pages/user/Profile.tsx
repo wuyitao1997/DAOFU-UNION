@@ -8,7 +8,6 @@ export default function Profile() {
     nickname: user?.nickname || '',
     wechat: user?.wechat || '',
     jd_union_id: user?.jd_union_id || '',
-    jd_union_key: user?.jd_union_key || '',
   });
 
   const [successMessage, setSuccessMessage] = useState('');
@@ -93,30 +92,31 @@ export default function Profile() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            京东联盟ID <span className="text-red-500">*</span>
+            联盟ID <span className="text-red-500">*</span>
           </label>
+          <p className="text-xs text-gray-500 mb-2">
+            你的京东联盟账号ID（用于京东官方结算）
+          </p>
           <input
             type="text"
             value={formData.jd_union_id}
             onChange={e => setFormData({...formData, jd_union_id: e.target.value})}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1677ff] outline-none"
-            placeholder="请输入京东联盟ID"
+            placeholder="请输入您的京东联盟ID"
             required
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            京东联盟有效key <span className="text-red-500">*</span>
+            平台分配RID
           </label>
-          <input
-            type="text"
-            value={formData.jd_union_key}
-            onChange={e => setFormData({...formData, jd_union_key: e.target.value})}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1677ff] outline-none"
-            placeholder="请输入京东联盟有效key"
-            required
-          />
+          <p className="text-xs text-gray-500 mb-2">
+            5位RID（平台审核后分配，不可修改）
+          </p>
+          <div className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 font-mono">
+            {user?.rid || '暂未分配'}
+          </div>
         </div>
 
         <div>

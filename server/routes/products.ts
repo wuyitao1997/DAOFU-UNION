@@ -70,8 +70,8 @@ router.post('/convert', async (req, res) => {
   }
 
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
-  if (!user || !user.jd_union_id || !user.jd_union_key) {
-    return res.status(400).json({ code: 400, msg: '请先在个人中心完善京东联盟ID和有效key' });
+  if (!user || !user.rid) {
+    return res.status(400).json({ code: 400, msg: '请先完成入驻审核，获取平台分配的RID' });
   }
 
   // Fetch product to get promotion copy if url is an ID
@@ -82,6 +82,16 @@ router.post('/convert', async (req, res) => {
   if (!url.startsWith('http')) {
     product = db.prepare('SELECT * FROM products WHERE id = ?').get(url) as any;
     materialId = `https://item.jd.com/${url}.html`;
+  }
+
+  // Append user's RID to materialId
+  try {
+    const urlObj = new URL(materialId);
+    urlObj.searchParams.set('rid', user.rid);
+    materialId = urlObj.toString();
+  } catch (e) {
+    // If it's not a valid URL, just append it
+    materialId = materialId + (materialId.includes('?') ? '&' : '?') + 'rid=' + user.rid;
   }
 
   const appKey = process.env.JD_APP_KEY || '3063ae2137fc178f64a10677c71f8db2';
@@ -97,41 +107,54 @@ router.post('/convert', async (req, res) => {
     } else {
       // Call JD API
       // Parse siteId as number to prevent NumberFormatException
-      const siteId = Number(user.jd_union_id);
-      if (isNaN(siteId) || !user.jd_union_id) {
-        return res.status(400).json({ code: 400, msg: '京东联盟ID必须是纯数字，请在个人中心修改' });
+      const positionId = Number(process.env.JD_POSITION_ID || '3103768449');
+      if (isNaN(positionId)) {
+        return res.status(500).json({ code: 500, msg: '系统未配置推广位ID(JD_POSITION_ID)' });
       }
 
       const paramJson = {
         promotionCodeReq: {
           materialId: materialId,
-          siteId: siteId,
-          ext1: user.jd_union_key || user.jd_union_id
+          positionId: positionId,
+          subUnionId: String(positionId) // 平台PID
         }
       };
 
-      const jdRes = await callJdApi('jd.union.open.promotion.common.get', paramJson, appKey, appSecret);
+      const jdRes = await callJdApi('jd.union.open.promotion.bysubunionid.get', paramJson, appKey, appSecret);
       console.log('JD API Response:', JSON.stringify(jdRes, null, 2));
       
       // Parse JD API response
-      const responseKey = 'jd_union_open_promotion_common_get_response';
-      if (!jdRes[responseKey] || !jdRes[responseKey].result) {
+      const responseKey = 'jd_union_open_promotion_bysubunionid_get_responce';
+      if (!jdRes[responseKey] || !jdRes[responseKey].getResult) {
         console.error('JD API Error (missing key or result):', jdRes);
         // Sometimes the error is at the top level
         if (jdRes.error_response) {
-           return res.status(500).json({ code: 500, msg: `京东接口报错: ${jdRes.error_response.zh_desc || jdRes.error_response.en_desc}` });
+           const errMsg = jdRes.error_response.zh_desc || jdRes.error_response.en_desc;
+           if (errMsg.includes('无效签名')) {
+             return res.status(500).json({ 
+               code: 500, 
+               msg: `京东接口报错: 无效签名。请检查：1. AppKey和AppSecret是否正确。2. 确保没有多余空格。当前使用的AppKey: ${appKey.substring(0, 4)}***` 
+             });
+           }
+           return res.status(500).json({ code: 500, msg: `京东接口报错: ${errMsg}` });
         }
         return res.status(500).json({ code: 500, msg: `转链失败，京东接口返回异常: ${JSON.stringify(jdRes)}` });
       }
 
-      const resultStr = jdRes[responseKey].result;
+      const resultStr = jdRes[responseKey].getResult;
       const resultObj = JSON.parse(resultStr);
 
       if (resultObj.code !== 200) {
+        if (resultObj.code === 403 || (resultObj.message && resultObj.message.includes('无访问权限'))) {
+          return res.status(500).json({ 
+            code: 500, 
+            msg: '转链失败：无访问权限。\n\n【原因】：您使用的是“导购媒体”的推广位ID，但您的京东联盟账号尚未开通“社交媒体获取推广链接接口”权限。\n\n【解决方案】：\n请前往京东联盟 -> 我的工具 -> API管理，申请“社交媒体获取推广链接接口”权限。申请通过后即可正常转链。' 
+          });
+        }
         return res.status(500).json({ code: 500, msg: resultObj.message || '转链失败' });
       }
 
-      clickURL = resultObj.data.clickURL;
+      clickURL = resultObj.data.shortURL || resultObj.data.clickURL;
     }
     
     let content = clickURL;

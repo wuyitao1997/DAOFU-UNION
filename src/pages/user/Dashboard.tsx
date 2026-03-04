@@ -9,9 +9,6 @@ export default function Dashboard() {
   const [showPhone, setShowPhone] = useState(false);
   const [showJdId, setShowJdId] = useState(false);
   
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [newJdKey, setNewJdKey] = useState('');
-  
   const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
   const [settlementType, setSettlementType] = useState<'public' | 'private'>('public');
   const [settlementForm, setSettlementForm] = useState({
@@ -25,36 +22,6 @@ export default function Dashboard() {
     if (!str) return '';
     if (str.length <= start + end) return str;
     return str.substring(0, start) + '****' + str.substring(str.length - end);
-  };
-
-  const handleUpdateAuth = async () => {
-    if (!newJdKey) return alert('请输入新的联盟授权KEY');
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/auth/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ 
-          nickname: user.nickname,
-          wechat: user.wechat,
-          jd_union_id: user.jd_union_id,
-          jd_union_key: newJdKey 
-        }),
-      });
-      const data = await res.json();
-      if (data.code === 200) {
-        alert('更新成功');
-        setIsAuthModalOpen(false);
-        window.location.reload();
-      } else {
-        alert(data.msg);
-      }
-    } catch (err) {
-      alert('更新失败');
-    }
   };
 
   const handleUpdateSettlement = async () => {
@@ -97,7 +64,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div>
-            <span className="text-gray-500 block mb-1">京东联盟ID</span>
+            <span className="text-gray-500 block mb-1">联盟ID</span>
             <div className="flex items-center space-x-2">
               <span className="font-medium text-gray-800">
                 {showJdId ? user.jd_union_id : maskString(user.jd_union_id, 2, 2)}
@@ -117,7 +84,6 @@ export default function Dashboard() {
       {/* Quick Actions */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { icon: RefreshCw, label: '更新联盟授权', color: 'text-blue-500', bg: 'bg-blue-50', onClick: () => setIsAuthModalOpen(true) },
           { icon: CreditCard, label: '结算信息', color: 'text-green-500', bg: 'bg-green-50', onClick: () => setIsSettlementModalOpen(true) },
           { icon: Settings, label: '账号信息编辑', color: 'text-purple-500', bg: 'bg-purple-50', onClick: () => navigate('/user/profile') },
           { icon: Shield, label: '安全设置', color: 'text-orange-500', bg: 'bg-orange-50', onClick: () => alert('功能开发中') },
@@ -134,38 +100,6 @@ export default function Dashboard() {
           </button>
         ))}
       </div>
-
-      {/* Auth Modal */}
-      {isAuthModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-gray-800">更新联盟授权</h3>
-              <button onClick={() => setIsAuthModalOpen(false)} className="text-gray-500 hover:text-gray-700">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">新的联盟授权KEY</label>
-                <input 
-                  type="text" 
-                  value={newJdKey}
-                  onChange={(e) => setNewJdKey(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1677ff] outline-none"
-                  placeholder="请输入新的有效KEY"
-                />
-              </div>
-              <button 
-                onClick={handleUpdateAuth}
-                className="w-full py-2 bg-[#1677ff] text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
-              >
-                确认更新
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Settlement Modal */}
       {isSettlementModalOpen && (

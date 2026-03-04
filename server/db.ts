@@ -31,7 +31,6 @@ export function initDb() {
       nickname TEXT NOT NULL,
       wechat TEXT,
       jd_union_id TEXT,
-      jd_union_key TEXT,
       rid TEXT,
       status TEXT DEFAULT 'pending', -- pending, normal, locked, blacklisted
       role TEXT DEFAULT 'user', -- user, admin, super_admin

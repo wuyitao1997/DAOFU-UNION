@@ -15,6 +15,7 @@ export default function Users() {
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showEditRidModal, setShowEditRidModal] = useState(false);
   const [ridInput, setRidInput] = useState('');
   const [rejectReason, setRejectReason] = useState('');
   const [modalError, setModalError] = useState('');
@@ -130,6 +131,47 @@ export default function Users() {
     setShowDetailsModal(true);
   };
 
+  const openEditRidModal = (user: any) => {
+    setSelectedUser(user);
+    setRidInput(user.rid || '');
+    setModalError('');
+    setShowEditRidModal(true);
+  };
+
+  const handleEditRid = async () => {
+    setModalError('');
+    if (admin?.role !== 'super_admin' && admin?.role !== 'admin') {
+      setModalError('无权限');
+      return;
+    }
+    if (!ridInput) {
+      setModalError('请输入RID');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('admin_token');
+      const res = await fetch(`/api/admin/users/${selectedUser.id}/rid`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ rid: ridInput })
+      });
+      const data = await res.json();
+      if (data.code === 200) {
+        setShowEditRidModal(false);
+        fetchUsers();
+      } else {
+        setModalError(data.msg || '操作失败');
+      }
+    } catch (err) {
+      console.error(err);
+      setModalError('操作失败，请重试');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-xl shadow-sm flex items-center justify-between">
@@ -153,7 +195,7 @@ export default function Users() {
                 <th className="p-4 font-medium">ID</th>
                 <th className="p-4 font-medium">昵称</th>
                 <th className="p-4 font-medium">手机号</th>
-                <th className="p-4 font-medium">京东联盟ID</th>
+                <th className="p-4 font-medium">联盟ID</th>
                 <th className="p-4 font-medium">RID</th>
                 <th className="p-4 font-medium">状态</th>
                 <th className="p-4 font-medium">注册时间</th>
@@ -190,6 +232,9 @@ export default function Users() {
                           <button onClick={() => openRejectModal(user)} className="text-red-500 hover:text-red-700">驳回</button>
                         </>
                       )}
+                      {user.status === 'normal' && (admin.role === 'super_admin' || admin.role === 'admin') && (
+                        <button onClick={() => openEditRidModal(user)} className="text-blue-500 hover:text-blue-700">修改RID</button>
+                      )}
                       <button onClick={() => openDetailsModal(user)} className="text-gray-500 hover:text-gray-700">详情</button>
                     </td>
                   </tr>
@@ -209,6 +254,42 @@ export default function Users() {
           </div>
         )}
       </div>
+
+      {/* Edit RID Modal */}
+      {showEditRidModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden">
+            <div className="flex justify-between items-center p-6 border-b">
+              <h3 className="text-lg font-bold text-gray-800">修改用户 RID</h3>
+              <button onClick={() => setShowEditRidModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600">正在修改用户 <strong>{selectedUser.nickname}</strong> ({selectedUser.phone}) 的RID。</p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">分配 RID</label>
+                <input
+                  type="text"
+                  value={ridInput}
+                  onChange={(e) => { setRidInput(e.target.value); setModalError(''); }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1677ff] focus:border-transparent outline-none"
+                  placeholder="请输入5位数字RID"
+                />
+              </div>
+              {modalError && (
+                <div className="text-sm text-red-500 bg-red-50 p-3 rounded-lg">
+                  {modalError}
+                </div>
+              )}
+            </div>
+            <div className="p-6 border-t bg-gray-50 flex justify-end space-x-3">
+              <button onClick={() => setShowEditRidModal(false)} className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100">取消</button>
+              <button onClick={handleEditRid} className="px-4 py-2 bg-[#1677ff] text-white rounded-lg hover:bg-blue-600">确定修改</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Approve Modal */}
       {showApproveModal && selectedUser && (
@@ -310,12 +391,12 @@ export default function Users() {
                 <p className="font-medium text-gray-800">{selectedUser.wechat || '-'}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500 mb-1">京东联盟ID</p>
+                <p className="text-sm text-gray-500 mb-1">联盟ID</p>
                 <p className="font-medium text-gray-800">{selectedUser.jd_union_id || '-'}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500 mb-1">京东联盟Key</p>
-                <p className="font-medium text-gray-800 break-all">{selectedUser.jd_union_key || '-'}</p>
+                <p className="text-sm text-gray-500 mb-1">RID</p>
+                <p className="font-medium text-gray-800 break-all">{selectedUser.rid || '-'}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500 mb-1">分配RID</p>

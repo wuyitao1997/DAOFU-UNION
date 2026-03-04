@@ -59,7 +59,6 @@ router.get('/me', (req, res) => {
     if (user.status === 'blacklisted') return res.status(403).json({ code: 403, msg: 'Account is blacklisted' });
     
     // Remove sensitive info (password if we had one)
-    // We keep jd_union_key so the user can see their own key in the profile form
 
     res.json({ code: 200, msg: 'Success', data: user });
   } catch (err) {
@@ -75,14 +74,14 @@ router.put('/profile', (req, res) => {
   const token = authHeader.split(' ')[1];
   try {
     const decoded: any = jwt.verify(token, JWT_SECRET);
-    const { nickname, wechat, jd_union_id, jd_union_key } = req.body;
+    const { nickname, wechat, jd_union_id } = req.body;
     
     const stmt = db.prepare(`
       UPDATE users 
-      SET nickname = ?, wechat = ?, jd_union_id = ?, jd_union_key = ?, status = 'pending', reject_reason = NULL
+      SET nickname = ?, wechat = ?, jd_union_id = ?, status = 'pending', reject_reason = NULL
       WHERE id = ?
     `);
-    stmt.run(nickname, wechat, jd_union_id, jd_union_key, decoded.id);
+    stmt.run(nickname, wechat, jd_union_id, decoded.id);
 
     res.json({ code: 200, msg: 'Profile updated, waiting for admin approval' });
   } catch (err) {

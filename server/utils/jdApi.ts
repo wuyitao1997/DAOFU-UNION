@@ -1,22 +1,28 @@
 import crypto from 'crypto';
 
 export async function callJdApi(method: string, paramJson: any, appKey: string, appSecret: string) {
-  // Get Beijing Time (UTC+8)
+  // 去除可能存在的首尾空格
+  appKey = appKey.trim();
+  appSecret = appSecret.trim();
+
+  // 获取北京时间 (UTC+8)
   const now = new Date();
+  const formatter = new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
   
-  // Convert to UTC+8
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const beijingTime = new Date(utc + (3600000 * 8));
+  const parts = formatter.formatToParts(now);
+  const dateMap: Record<string, string> = {};
+  parts.forEach(p => { dateMap[p.type] = p.value; });
   
-  // Format: yyyy-MM-dd HH:mm:ss
-  const year = beijingTime.getFullYear();
-  const month = String(beijingTime.getMonth() + 1).padStart(2, '0');
-  const day = String(beijingTime.getDate()).padStart(2, '0');
-  const hours = String(beijingTime.getHours()).padStart(2, '0');
-  const minutes = String(beijingTime.getMinutes()).padStart(2, '0');
-  const seconds = String(beijingTime.getSeconds()).padStart(2, '0');
-  
-  const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  const timestamp = `${dateMap.year}-${dateMap.month}-${dateMap.day} ${dateMap.hour}:${dateMap.minute}:${dateMap.second}`;
   
   const sysParams: Record<string, string> = {
     app_key: appKey,
@@ -43,20 +49,21 @@ export async function callJdApi(method: string, paramJson: any, appKey: string, 
   
   sysParams.sign = sign;
 
-  // 4. 组装 URL (京东推荐将系统参数放在 URL 上，业务参数放在 body 中，或者全部放在 URL 上)
-  // URLSearchParams 会把空格编码成 +，这可能导致京东解析时间戳时出错，所以我们手动编码
-  const queryParams = Object.keys(sysParams)
+  // 4. 组装请求体 (使用 application/x-www-form-urlencoded)
+  // 手动拼接并使用 encodeURIComponent，确保空格被编码为 %20 而不是 +
+  const bodyStr = Object.keys(sysParams)
     .map(key => `${key}=${encodeURIComponent(sysParams[key])}`)
     .join('&');
   
-  const url = `https://router.jd.com/api?${queryParams}`;
+  const url = `https://api.jd.com/routerjson`;
 
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8'
+      },
+      body: bodyStr
     });
     const data = await response.json();
     return data;

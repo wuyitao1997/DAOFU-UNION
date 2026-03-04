@@ -103,12 +103,49 @@ router.put('/users/:id/approve', (req, res) => {
     const { id } = req.params;
     const { rid } = req.body;
     
+    if (!rid || !/^\d{5}$/.test(rid)) {
+      return res.status(400).json({ code: 400, msg: 'RID必须是5位纯数字' });
+    }
+
+    // Check if RID is unique
+    const existing = db.prepare('SELECT id FROM users WHERE rid = ? AND id != ?').get(rid, id);
+    if (existing) {
+      return res.status(400).json({ code: 400, msg: '该RID已被分配，请使用其他RID' });
+    }
+    
     const stmt = db.prepare('UPDATE users SET status = \'normal\', rid = ? WHERE id = ?');
     stmt.run(rid, id);
     
     res.json({ code: 200, msg: 'User approved' });
   } catch (err: any) {
     console.error('Error approving user:', err);
+    res.status(500).json({ code: 500, msg: err.message });
+  }
+});
+
+router.put('/users/:id/rid', (req, res) => {
+  try {
+    if ((req as any).user.role !== 'super_admin' && (req as any).user.role !== 'admin') return res.status(403).json({ code: 403, msg: 'Forbidden' });
+    
+    const { id } = req.params;
+    const { rid } = req.body;
+    
+    if (!rid || !/^\d{5}$/.test(rid)) {
+      return res.status(400).json({ code: 400, msg: 'RID必须是5位纯数字' });
+    }
+
+    // Check if RID is unique
+    const existing = db.prepare('SELECT id FROM users WHERE rid = ? AND id != ?').get(rid, id);
+    if (existing) {
+      return res.status(400).json({ code: 400, msg: '该RID已被分配，请使用其他RID' });
+    }
+    
+    const stmt = db.prepare('UPDATE users SET rid = ? WHERE id = ?');
+    stmt.run(rid, id);
+    
+    res.json({ code: 200, msg: 'RID updated successfully' });
+  } catch (err: any) {
+    console.error('Error updating user RID:', err);
     res.status(500).json({ code: 500, msg: err.message });
   }
 });
