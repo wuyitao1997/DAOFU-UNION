@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import db from '../db.js';
 import fetch from 'node-fetch';
 import * as cheerio from 'cheerio';
-import { callJdApi } from '../test_jd_api.js';
+import { callJdApi } from '../utils/jdApi.js';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
