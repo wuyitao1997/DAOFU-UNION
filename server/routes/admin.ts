@@ -180,13 +180,18 @@ router.get('/products/jd-info/:id', async (req, res) => {
       return res.status(500).json({ code: 500, msg: '系统未配置京东联盟API密钥' });
     }
 
+    // 使用 jd.union.open.goods.query 接口
     const paramJson = {
-      skuIds: id
+      goodsReqDTO: {
+        skuIds: [Number(id)],  // 数组类型，转为数字
+        pageIndex: 1,
+        pageSize: 1
+      }
     };
 
-    const jdRes = await callJdApi('jd.union.open.goods.promotiongoodsinfo.query', paramJson, appKey, appSecret);
+    const jdRes = await callJdApi('jd.union.open.goods.query', paramJson, appKey, appSecret);
     
-    const responseKey = 'jd_union_open_goods_promotiongoodsinfo_query_responce';
+    const responseKey = 'jd_union_open_goods_query_responce';
     if (!jdRes[responseKey] || !jdRes[responseKey].queryResult) {
        console.error('JD API Error:', jdRes);
        return res.status(500).json({ code: 500, msg: '获取京东商品信息失败', details: jdRes });
@@ -196,7 +201,7 @@ router.get('/products/jd-info/:id', async (req, res) => {
     const resultObj = JSON.parse(resultStr);
 
     if (resultObj.code === 403) {
-       return res.status(403).json({ code: 403, msg: '京东联盟API无访问权限，请在京东联盟控制台申请【基础API】或【商品API】权限。', details: resultObj.message });
+       return res.status(403).json({ code: 403, msg: '京东联盟API无访问权限，请在京东联盟控制台申请【商品查询】权限。', details: resultObj.message });
     }
 
     if (resultObj.code !== 200 || !resultObj.data || resultObj.data.length === 0) {
@@ -205,7 +210,7 @@ router.get('/products/jd-info/:id', async (req, res) => {
 
     const goodsInfo = resultObj.data[0];
     
-    // Extract required fields
+    // 提取字段（字段名可能不同，需要适配）
     const title = goodsInfo.skuName || goodsInfo.goodsName;
     const image_url = goodsInfo.imageInfo?.imageList?.[0]?.url || goodsInfo.imgUrl || goodsInfo.imageUrl;
     const price = goodsInfo.priceInfo?.price || goodsInfo.unitPrice || goodsInfo.price;
