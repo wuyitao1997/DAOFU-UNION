@@ -80,18 +80,29 @@ export function initDb() {
 
     CREATE TABLE IF NOT EXISTS orders (
       order_id TEXT PRIMARY KEY,
+      parent_id TEXT,
       product_id TEXT,
       product_name TEXT,
+      shop_id TEXT,
+      shop_name TEXT,
       status TEXT, -- paid, completed, refunded, invalid
       order_time DATETIME,
       finish_time DATETIME,
       rid TEXT,
+      union_id TEXT,
       product_type TEXT,
       estimated_commission REAL,
+      actual_commission REAL,
       estimated_service_fee REAL,
+      actual_service_fee REAL,
       service_fee_rate REAL,
       split_rate REAL,
       quantity INTEGER,
+      return_quantity INTEGER DEFAULT 0,
+      frozen_quantity INTEGER DEFAULT 0,
+      cp_act_id TEXT,
+      owner TEXT, -- g=自营, p=pop
+      main_sku_id TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -135,6 +146,29 @@ export function initDb() {
   } catch (err) {
     // Column might already exist
   }
+
+  // Add missing columns if they don't exist
+  const addColumn = (table: string, column: string, type: string) => {
+    try {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+    } catch (e: any) {
+      if (!e.message.includes('duplicate column name')) {
+        console.error(`Error adding column ${column} to ${table}:`, e);
+      }
+    }
+  };
+
+  addColumn('orders', 'parent_id', 'TEXT');
+  addColumn('orders', 'shop_id', 'TEXT');
+  addColumn('orders', 'shop_name', 'TEXT');
+  addColumn('orders', 'union_id', 'TEXT');
+  addColumn('orders', 'actual_commission', 'REAL');
+  addColumn('orders', 'actual_service_fee', 'REAL');
+  addColumn('orders', 'return_quantity', 'INTEGER DEFAULT 0');
+  addColumn('orders', 'frozen_quantity', 'INTEGER DEFAULT 0');
+  addColumn('orders', 'cp_act_id', 'TEXT');
+  addColumn('orders', 'owner', 'TEXT');
+  addColumn('orders', 'main_sku_id', 'TEXT');
 
   // Create super admin if not exists
   const adminStmt = db.prepare('SELECT id FROM users WHERE role = ?');

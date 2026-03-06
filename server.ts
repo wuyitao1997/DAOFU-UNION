@@ -11,6 +11,7 @@ import adminRoutes from "./server/routes/admin.js";
 import productRoutes from "./server/routes/products.js";
 import activityRoutes from "./server/routes/activities.js";
 import uploadRoutes from "./server/routes/upload.js";
+import userRoutes from "./server/routes/user.js";
 
 dotenv.config();
 
@@ -36,6 +37,7 @@ async function startServer() {
   app.use("/api/products", productRoutes);
   app.use("/api/activities", activityRoutes);
   app.use("/api/upload", uploadRoutes);
+  app.use("/api/user", userRoutes);
   
   // Serve uploaded files
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));

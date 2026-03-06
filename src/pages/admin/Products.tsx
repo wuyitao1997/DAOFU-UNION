@@ -51,27 +51,94 @@ export default function Products() {
     image_url: ''
   });
 
-  const handleIdChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const id = e.target.value;
-    setFormData({ ...formData, id });
+  const [isFetching, setIsFetching] = useState(false);
+  const [groupLeaderFee, setGroupLeaderFee] = useState('');
+
+  const fetchJdInfo = async () => {
+    let id = formData.id?.trim();
+    if (!id || id.length < 5) {
+      setModalError('请输入有效的商品ID或链接');
+      return;
+    }
     
-    if (id && id.length > 5) {
-      try {
-        const token = localStorage.getItem('admin_token');
-        const res = await fetch(`/api/admin/products/jd-info/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (data.code === 200 && data.data) {
-          setFormData(prev => ({ 
-            ...prev, 
-            title: data.data.title || prev.title,
-            image_url: data.data.image_url || prev.image_url
-          }));
-        }
-      } catch (err) {
-        console.error('Failed to fetch JD info:', err);
+    // Extract ID if it's a URL or contains non-digits
+    if (id.includes('http') || id.includes('jd.com')) {
+      const match = id.match(/(\d{6,})/);
+      if (match && match[1]) {
+        id = match[1];
+        setFormData(prev => ({ ...prev, id }));
+      } else {
+        setModalError('无法从输入中提取商品ID，请手动输入纯数字ID');
+        return;
       }
+    } else if (!/^\d+$/.test(id)) {
+      setModalError('商品ID必须是纯数字');
+      return;
+    }
+    
+    setIsFetching(true);
+    setModalError('');
+    try {
+      const token = localStorage.getItem('admin_token');
+      const res = await fetch(`/api/admin/products/jd-info/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.msg || '获取商品信息失败');
+      }
+
+      if (data.code === 200 && data.data) {
+        const commissionRate = data.data.commission_rate || 0;
+        const serviceRate = data.data.service_rate || 0;
+        
+        // Auto-calculate system service fee if service rate is provided
+        if (serviceRate) {
+          setGroupLeaderFee(String(serviceRate));
+          const systemFee = (Number(serviceRate) * 0.3).toFixed(2);
+          setFormData(prev => ({ ...prev, system_service_fee: systemFee }));
+        }
+        
+        // Format dates if provided
+        const formatTime = (timeStr: string) => {
+          if (!timeStr) return '';
+          try {
+            const d = new Date(timeStr);
+            return d.toISOString().slice(0, 16); // YYYY-MM-DDThh:mm
+          } catch (e) {
+            return '';
+          }
+        };
+        
+        setFormData(prev => ({ 
+          ...prev, 
+          title: data.data.title || prev.title,
+          image_url: data.data.image_url || prev.image_url,
+          price: data.data.price ? String(data.data.price) : prev.price,
+          commission_rate: commissionRate ? String(commissionRate) : prev.commission_rate,
+          start_time: data.data.start_time ? formatTime(data.data.start_time) : prev.start_time,
+          end_time: data.data.end_time ? formatTime(data.data.end_time) : prev.end_time
+        }));
+      } else {
+        setModalError(data.msg || '获取商品信息失败');
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch JD info:', err);
+      setModalError(err.message || '网络或服务器错误，获取商品信息失败');
+    } finally {
+      setIsFetching(false);
+    }
+  };
+
+  const handleGroupLeaderFeeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fee = e.target.value;
+    setGroupLeaderFee(fee);
+    if (fee && !isNaN(Number(fee))) {
+      const systemFee = (Number(fee) * 0.3).toFixed(2);
+      setFormData(prev => ({ ...prev, system_service_fee: systemFee }));
+    } else {
+      setFormData(prev => ({ ...prev, system_service_fee: '' }));
     }
   };
 
@@ -295,7 +362,14 @@ export default function Products() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">商品ID <span className="text-red-500">*</span></label>
-                  <input type="text" required value={formData.id} onChange={handleIdChange} disabled={!!editingProduct} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-[#1677ff] disabled:bg-gray-100 disabled:text-gray-500" placeholder="输入商品ID自动获取标题" />
+                  <div className="flex space-x-2">
+                    <input type="text" required value={formData.id} onChange={e => setFormData({...formData, id: e.target.value})} disabled={!!editingProduct} className="flex-1 px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-[#1677ff] disabled:bg-gray-100 disabled:text-gray-500" placeholder="输入商品ID" />
+                    {!editingProduct && (
+                      <button type="button" onClick={fetchJdInfo} disabled={isFetching} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 whitespace-nowrap">
+                        {isFetching ? '获取中...' : '获取信息'}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">店铺名称</label>
@@ -316,6 +390,10 @@ export default function Products() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">佣金比例(%) <span className="text-red-500">*</span></label>
                   <input type="number" step="0.01" required value={formData.commission_rate} onChange={e => setFormData({...formData, commission_rate: e.target.value})} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-[#1677ff]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">团长服务费比例(%)</label>
+                  <input type="number" step="0.01" value={groupLeaderFee} onChange={handleGroupLeaderFeeChange} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-[#1677ff]" placeholder="输入后自动计算系统服务费" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">系统服务费(%) <span className="text-red-500">*</span></label>

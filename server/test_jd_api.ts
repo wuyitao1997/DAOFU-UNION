@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-async function callJdApi(method: string, paramJson: any, appKey: string, appSecret: string) {
+export async function callJdApi(method: string, paramJson: any, appKey: string, appSecret: string) {
   const now = new Date();
   const formatter = new Intl.DateTimeFormat('zh-CN', {
     timeZone: 'Asia/Shanghai',

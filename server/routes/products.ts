@@ -94,8 +94,8 @@ router.post('/convert', async (req, res) => {
     materialId = materialId + (materialId.includes('?') ? '&' : '?') + 'rid=' + user.rid;
   }
 
-  const appKey = process.env.JD_APP_KEY || '3063ae2137fc178f64a10677c71f8db2';
-  const appSecret = process.env.JD_APP_SECRET || 'e340bb01536c428a970d596b3a0b65bd';
+  const appKey = process.env.JD_APP_KEY;
+  const appSecret = process.env.JD_APP_SECRET;
 
   try {
     let clickURL = '';
@@ -106,25 +106,45 @@ router.post('/convert', async (req, res) => {
       clickURL = `https://u.jd.com/${Math.random().toString(36).substring(7)}`;
     } else {
       // Call JD API
-      // Parse siteId as number to prevent NumberFormatException
+      const siteIdStr = process.env.JD_SITE_ID;
       const positionId = Number(process.env.JD_POSITION_ID || '3103768449');
+      
       if (isNaN(positionId)) {
         return res.status(500).json({ code: 500, msg: '系统未配置推广位ID(JD_POSITION_ID)' });
       }
 
-      const paramJson = {
-        promotionCodeReq: {
-          materialId: materialId,
-          positionId: positionId,
-          subUnionId: String(positionId) // 平台PID
-        }
-      };
+      let jdRes;
+      let responseKey;
 
-      const jdRes = await callJdApi('jd.union.open.promotion.bysubunionid.get', paramJson, appKey, appSecret);
+      if (siteIdStr && siteIdStr.trim() !== '') {
+        // Use common.get (for Website/APP media)
+        const siteId = Number(siteIdStr);
+        const paramJson = {
+          promotionCodeReq: {
+            materialId: materialId,
+            siteId: siteId,
+            positionId: positionId,
+            ext1: user.rid || String(positionId) // 使用ext1传递RID
+          }
+        };
+        jdRes = await callJdApi('jd.union.open.promotion.common.get', paramJson, appKey, appSecret);
+        responseKey = 'jd_union_open_promotion_common_get_responce';
+      } else {
+        // Use bysubunionid.get (for Shopping Guide media)
+        const paramJson = {
+          promotionCodeReq: {
+            materialId: materialId,
+            positionId: positionId,
+            subUnionId: user.rid || String(positionId) // 使用subUnionId传递RID
+          }
+        };
+        jdRes = await callJdApi('jd.union.open.promotion.bysubunionid.get', paramJson, appKey, appSecret);
+        responseKey = 'jd_union_open_promotion_bysubunionid_get_responce';
+      }
+
       console.log('JD API Response:', JSON.stringify(jdRes, null, 2));
       
       // Parse JD API response
-      const responseKey = 'jd_union_open_promotion_bysubunionid_get_responce';
       if (!jdRes[responseKey] || !jdRes[responseKey].getResult) {
         console.error('JD API Error (missing key or result):', jdRes);
         // Sometimes the error is at the top level
@@ -145,10 +165,16 @@ router.post('/convert', async (req, res) => {
       const resultObj = JSON.parse(resultStr);
 
       if (resultObj.code !== 200) {
+        if (resultObj.message && resultObj.message.includes('不支持siteId用于此种方式推广')) {
+          return res.status(500).json({ 
+            code: 500, 
+            msg: '转链失败：媒体类型不匹配。\n\n【原因】：您在 JD_SITE_ID 中填入的是“导购媒体”的ID，但当前接口仅支持“网站/APP媒体”的ID。\n\n【解决方案】：\n方案1（推荐，无需审核）：去京东联盟 -> 推广管理 -> 网站/APP管理，新建一个网站或APP媒体，将新的媒体ID填入 JD_SITE_ID，并使用该媒体下的推广位ID。\n方案2：如果您必须使用导购媒体，请在环境变量中删除 JD_SITE_ID，系统将自动切换为导购媒体专属接口。但您必须先在京东联盟申请“社交媒体获取推广链接接口”权限，否则会提示无访问权限。' 
+          });
+        }
         if (resultObj.code === 403 || (resultObj.message && resultObj.message.includes('无访问权限'))) {
           return res.status(500).json({ 
             code: 500, 
-            msg: '转链失败：无访问权限。\n\n【原因】：您使用的是“导购媒体”的推广位ID，但您的京东联盟账号尚未开通“社交媒体获取推广链接接口”权限。\n\n【解决方案】：\n请前往京东联盟 -> 我的工具 -> API管理，申请“社交媒体获取推广链接接口”权限。申请通过后即可正常转链。' 
+            msg: '转链失败：无访问权限。\n\n【原因】：您使用的是“导购媒体”专属接口，但您的京东联盟账号尚未开通“社交媒体获取推广链接接口”权限。\n\n【解决方案】：\n请前往京东联盟 -> 我的工具 -> API管理，申请“社交媒体获取推广链接接口”权限。申请通过后即可正常转链。' 
           });
         }
         return res.status(500).json({ code: 500, msg: resultObj.message || '转链失败' });

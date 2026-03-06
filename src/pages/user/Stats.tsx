@@ -8,17 +8,52 @@ export default function Stats() {
     today_commission: 0,
     month_commission: 0,
   });
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // In a real app, fetch from API
-    // For demo, we use mock data
-    setStats({
-      today_clicks: 128,
-      today_orders: 12,
-      today_commission: 156.5,
-      month_commission: 3450.2,
-    });
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const [statsRes, ordersRes] = await Promise.all([
+          fetch('/api/user/stats', {
+            headers: { Authorization: `Bearer ${token}` }
+          }),
+          fetch('/api/user/orders?page=1&size=10', {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+        ]);
+
+        const statsData = await statsRes.json();
+        const ordersData = await ordersRes.json();
+
+        if (statsData.code === 200) {
+          setStats(statsData.data);
+        }
+        if (ordersData.code === 200) {
+          setOrders(ordersData.data.list);
+        }
+      } catch (err) {
+        console.error('Failed to fetch stats:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'paid': return <span className="text-blue-500">已付款</span>;
+      case 'completed': return <span className="text-green-500">已完成</span>;
+      case 'refunded': return <span className="text-red-500">已退款</span>;
+      case 'invalid': return <span className="text-gray-500">无效</span>;
+      default: return <span className="text-gray-500">{status}</span>;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -80,11 +115,35 @@ export default function Stats() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              <tr>
-                <td colSpan={5} className="p-8 text-center text-gray-500">
-                  暂无订单数据
-                </td>
-              </tr>
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-gray-500">
+                    加载中...
+                  </td>
+                </tr>
+              ) : orders.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-gray-500">
+                    暂无订单数据
+                  </td>
+                </tr>
+              ) : (
+                orders.map((order) => (
+                  <tr key={order.order_id} className="hover:bg-gray-50 transition-colors">
+                    <td className="p-4 text-sm text-gray-800">{order.order_id}</td>
+                    <td className="p-4 text-sm text-gray-800 max-w-xs truncate" title={order.product_name}>
+                      {order.product_name}
+                    </td>
+                    <td className="p-4 text-sm">{getStatusText(order.status)}</td>
+                    <td className="p-4 text-sm text-gray-500">
+                      {new Date(order.order_time).toLocaleString()}
+                    </td>
+                    <td className="p-4 text-sm font-medium text-orange-600">
+                      ¥{order.estimated_service_fee.toFixed(2)}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
