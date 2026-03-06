@@ -13,6 +13,7 @@ import activityRoutes from "./server/routes/activities.js";
 import uploadRoutes from "./server/routes/upload.js";
 import userRoutes from "./server/routes/user.js";
 
+dotenv.config({ path: '.env.local' });
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
