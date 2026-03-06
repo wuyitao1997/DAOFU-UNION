@@ -180,18 +180,17 @@ router.get('/products/jd-info/:id', async (req, res) => {
       return res.status(500).json({ code: 500, msg: '系统未配置京东联盟API密钥' });
     }
 
-    // 使用 jd.union.open.goods.query 接口
+    // 使用 jd.union.open.goods.bigfield.query 接口
     const paramJson = {
-      goodsReqDTO: {
-        skuIds: [Number(id)],  // 数组类型，转为数字
-        pageIndex: 1,
-        pageSize: 1
+      goodsReq: {
+        skuIds: [Number(id)],
+        sceneId: 2  // 使用SKU ID查询，需要权限
       }
     };
 
-    const jdRes = await callJdApi('jd.union.open.goods.query', paramJson, appKey, appSecret);
+    const jdRes = await callJdApi('jd.union.open.goods.bigfield.query', paramJson, appKey, appSecret);
     
-    const responseKey = 'jd_union_open_goods_query_responce';
+    const responseKey = 'jd_union_open_goods_bigfield_query_responce';
     if (!jdRes[responseKey] || !jdRes[responseKey].queryResult) {
        console.error('JD API Error:', jdRes);
        return res.status(500).json({ code: 500, msg: '获取京东商品信息失败', details: jdRes });
@@ -201,7 +200,7 @@ router.get('/products/jd-info/:id', async (req, res) => {
     const resultObj = JSON.parse(resultStr);
 
     if (resultObj.code === 403) {
-       return res.status(403).json({ code: 403, msg: '京东联盟API无访问权限，请在京东联盟控制台申请【商品查询】权限。', details: resultObj.message });
+       return res.status(403).json({ code: 403, msg: '京东联盟API无访问权限，请在京东联盟控制台申请【商品详情查询】权限。', details: resultObj.message });
     }
 
     if (resultObj.code !== 200 || !resultObj.data || resultObj.data.length === 0) {
@@ -210,14 +209,14 @@ router.get('/products/jd-info/:id', async (req, res) => {
 
     const goodsInfo = resultObj.data[0];
     
-    // 提取字段（字段名可能不同，需要适配）
-    const title = goodsInfo.skuName || goodsInfo.goodsName;
-    const image_url = goodsInfo.imageInfo?.imageList?.[0]?.url || goodsInfo.imgUrl || goodsInfo.imageUrl;
-    const price = goodsInfo.priceInfo?.price || goodsInfo.unitPrice || goodsInfo.price;
-    const commission_rate = goodsInfo.commissionInfo?.commissionShare || goodsInfo.commissionRate || 0;
-    const service_rate = goodsInfo.commissionInfo?.plusCommissionShare || goodsInfo.serviceRate || 0;
-    const start_time = goodsInfo.commissionInfo?.startTime || goodsInfo.startTime || null;
-    const end_time = goodsInfo.commissionInfo?.endTime || goodsInfo.endTime || null;
+    // 提取字段（bigfield接口字段结构不同）
+    const title = goodsInfo.skuName;
+    const image_url = goodsInfo.imageInfo?.imageList?.[0]?.url;
+    const price = goodsInfo.priceInfo?.price;
+    const commission_rate = goodsInfo.commissionInfo?.commissionShare || 0;
+    const service_rate = goodsInfo.commissionInfo?.plusCommissionShare || 0;
+    const start_time = goodsInfo.commissionInfo?.startTime || null;
+    const end_time = goodsInfo.commissionInfo?.endTime || null;
     
     res.json({ 
       code: 200, 
