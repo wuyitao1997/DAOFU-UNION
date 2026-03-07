@@ -3,10 +3,10 @@ import jwt from 'jsonwebtoken';
 import db from '../db.js';
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Middleware to check user role
 const checkUser = (req: any, res: any, next: any) => {
+  const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ code: 401, msg: 'Unauthorized' });
 
