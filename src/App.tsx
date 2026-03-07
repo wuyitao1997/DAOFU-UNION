@@ -21,6 +21,7 @@ import AdminOrders from './pages/admin/Orders';
 import AdminSettlements from './pages/admin/Settlements';
 import JDAuth from './pages/admin/JDAuth';
 import JDActivities from './pages/admin/JDActivities';
+import OrderSync from './pages/admin/OrderSync';
 
 export default function App() {
   return (
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="settlements" element={<AdminSettlements />} />
           <Route path="jd-auth" element={<JDAuth />} />
           <Route path="jd-activities" element={<JDActivities />} />
+          <Route path="order-sync" element={<OrderSync />} />
         </Route>
       </Routes>
     </Router>

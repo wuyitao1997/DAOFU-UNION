@@ -14,6 +14,8 @@ import uploadRoutes from "./server/routes/upload.js";
 import userRoutes from "./server/routes/user.js";
 import jdOAuthRoutes from "./server/routes/jdOAuth.js";
 import jdActivitiesRoutes from "./server/routes/jdActivities.js";
+import jdOrdersRoutes from "./server/routes/jdOrders.js";
+import userStatsRoutes from "./server/routes/userStats.js";
 import { startCronJobs } from "./server/cron.js";
 
 dotenv.config({ path: '.env.local' });
@@ -44,6 +46,8 @@ async function startServer() {
   app.use("/api/user", userRoutes);
   app.use("/api/jd-oauth", jdOAuthRoutes);
   app.use("/api/jd-activities", jdActivitiesRoutes);
+  app.use("/api/jd-orders", jdOrdersRoutes);
+  app.use("/api/user-stats", userStatsRoutes);
   
   // Serve uploaded files
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));

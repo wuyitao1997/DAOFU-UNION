@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Users, ShoppingBag, LayoutDashboard, LogOut, Activity, FileText, DollarSign, Key, Calendar } from 'lucide-react';
+import { Users, ShoppingBag, LayoutDashboard, LogOut, Activity, FileText, DollarSign, Key, Calendar, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 export default function AdminLayout() {
@@ -47,6 +47,7 @@ export default function AdminLayout() {
     { path: '/admin/settlements', icon: DollarSign, label: '结算管理' },
     { path: '/admin/jd-auth', icon: Key, label: '京东授权' },
     { path: '/admin/jd-activities', icon: Calendar, label: '团长活动' },
+    { path: '/admin/order-sync', icon: RefreshCw, label: '订单同步' },
   ];
 
   if (!admin) return <div className="flex h-screen items-center justify-center">Loading...</div>;
