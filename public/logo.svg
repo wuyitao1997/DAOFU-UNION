@@ -1,7 +1,7 @@
-<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+<svg width="80" height="80" xmlns="http://www.w3.org/2000/svg">
   <!-- 背景圆形，使用京东红色 -->
-  <circle cx="100" cy="100" r="90" fill="#E4393C"/>
+  <circle cx="40" cy="40" r="36" fill="#E4393C"/>
   
   <!-- DF 文字，白色 -->
-  <text x="100" y="130" font-family="Arial, sans-serif" font-size="80" font-weight="bold" fill="white" text-anchor="middle">DF</text>
+  <text x="40" y="52" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="white" text-anchor="middle">DF</text>
 </svg>
