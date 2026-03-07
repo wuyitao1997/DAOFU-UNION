@@ -20,7 +20,7 @@ router.get('/orders', (req, res) => {
     const { page = 1, size = 20 } = req.query;
     const offset = (Number(page) - 1) * Number(size);
 
-    // 查询该用户 RID 的所有订单
+    // 查询该用户 RID 的所有订单（处理浮点数格式的RID）
     const orders = db.prepare(`
       SELECT 
         order_id as orderId,
@@ -41,12 +41,12 @@ router.get('/orders', (req, res) => {
         cp_act_id as cpActId,
         rid
       FROM orders
-      WHERE rid = ?
+      WHERE CAST(rid AS INTEGER) = CAST(? AS INTEGER)
       ORDER BY order_time DESC
       LIMIT ? OFFSET ?
     `).all(user.rid, Number(size), offset);
 
-    const total = db.prepare('SELECT COUNT(*) as count FROM orders WHERE rid = ?').get(user.rid);
+    const total = db.prepare('SELECT COUNT(*) as count FROM orders WHERE CAST(rid AS INTEGER) = CAST(? AS INTEGER)').get(user.rid);
 
     res.json({
       code: 200,
@@ -78,7 +78,7 @@ router.get('/product-stats', (req, res) => {
       return res.json({ code: 200, msg: 'Success', data: [] });
     }
 
-    // 按商品ID聚合数据
+    // 按商品ID聚合数据（处理浮点数格式的RID）
     const stats = db.prepare(`
       SELECT 
         CASE 
@@ -91,7 +91,7 @@ router.get('/product-stats', (req, res) => {
         SUM(estimated_commission) as totalEstimateCommission,
         SUM(actual_commission) as totalActualCommission
       FROM orders
-      WHERE rid = ?
+      WHERE CAST(rid AS INTEGER) = CAST(? AS INTEGER)
       GROUP BY productId
       ORDER BY totalEstimateCommission DESC
     `).all(user.rid);
@@ -134,7 +134,7 @@ router.get('/shop-stats', (req, res) => {
       return res.json({ code: 200, msg: 'Success', data: [] });
     }
 
-    // 按店铺ID聚合数据
+    // 按店铺ID聚合数据（处理浮点数格式的RID）
     const stats = db.prepare(`
       SELECT 
         shop_id as shopId,
@@ -144,7 +144,7 @@ router.get('/shop-stats', (req, res) => {
         SUM(estimated_commission) as totalEstimateCommission,
         SUM(actual_commission) as totalActualCommission
       FROM orders
-      WHERE rid = ?
+      WHERE CAST(rid AS INTEGER) = CAST(? AS INTEGER)
       GROUP BY shop_id
       ORDER BY totalEstimateCommission DESC
     `).all(user.rid);
@@ -157,7 +157,7 @@ router.get('/shop-stats', (req, res) => {
           estimated_commission,
           actual_commission
         FROM orders
-        WHERE rid = ? AND shop_id = ?
+        WHERE CAST(rid AS INTEGER) = CAST(? AS INTEGER) AND shop_id = ?
       `).all(user.rid, item.shopId);
 
       let estimateServiceFee = 0;
