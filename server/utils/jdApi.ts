@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-export async function callJdApi(method: string, paramJson: any, appKey: string, appSecret: string) {
+export async function callJdApi(method: string, paramJson: any, appKey: string, appSecret: string, accessToken?: string) {
   // 去除可能存在的首尾空格
   appKey = appKey.trim();
   appSecret = appSecret.trim();
@@ -34,6 +34,11 @@ export async function callJdApi(method: string, paramJson: any, appKey: string, 
     '360buy_param_json': JSON.stringify(paramJson)
   };
 
+  // 如果有 access_token，添加到参数中
+  if (accessToken) {
+    sysParams.access_token = accessToken;
+  }
+
   // 1. 参数按字母升序排列
   const keys = Object.keys(sysParams).sort();
   
@@ -43,6 +48,11 @@ export async function callJdApi(method: string, paramJson: any, appKey: string, 
     signStr += key + sysParams[key];
   }
   signStr += appSecret; // 尾部加 appSecret
+  
+  console.log('=== 签名计算详情 ===');
+  console.log('待签名字符串:', signStr);
+  console.log('参数列表:', JSON.stringify(sysParams, null, 2));
+  console.log('==================');
   
   // 3. MD5 加密转大写
   const sign = crypto.createHash('md5').update(signStr, 'utf8').digest('hex').toUpperCase();
@@ -66,6 +76,16 @@ export async function callJdApi(method: string, paramJson: any, appKey: string, 
       body: bodyStr
     });
     const data = await response.json();
+    
+    // 详细日志
+    console.log('=== 京东API调用详情 ===');
+    console.log('Method:', method);
+    console.log('AppKey:', appKey);
+    console.log('Timestamp:', timestamp);
+    console.log('Sign:', sign);
+    console.log('Response:', JSON.stringify(data, null, 2));
+    console.log('======================');
+    
     return data;
   } catch (error) {
     console.error('JD API Error:', error);

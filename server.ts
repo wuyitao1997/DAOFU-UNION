@@ -12,6 +12,9 @@ import productRoutes from "./server/routes/products.js";
 import activityRoutes from "./server/routes/activities.js";
 import uploadRoutes from "./server/routes/upload.js";
 import userRoutes from "./server/routes/user.js";
+import jdOAuthRoutes from "./server/routes/jdOAuth.js";
+import jdActivitiesRoutes from "./server/routes/jdActivities.js";
+import { startCronJobs } from "./server/cron.js";
 
 dotenv.config({ path: '.env.local' });
 dotenv.config();
@@ -39,6 +42,8 @@ async function startServer() {
   app.use("/api/activities", activityRoutes);
   app.use("/api/upload", uploadRoutes);
   app.use("/api/user", userRoutes);
+  app.use("/api/jd-oauth", jdOAuthRoutes);
+  app.use("/api/jd-activities", jdActivitiesRoutes);
   
   // Serve uploaded files
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -69,6 +74,9 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    
+    // 启动定时任务
+    startCronJobs();
   });
 }
 

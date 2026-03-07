@@ -168,11 +168,13 @@ router.put('/users/:id/reject', (req, res) => {
   }
 });
 
-// Products
+// Products - Get JD product info
 router.get('/products/jd-info/:id', async (req, res) => {
   console.log('Received request for JD info:', req.params.id);
   try {
     const { id } = req.params;
+    const { activityId } = req.query; // 从查询参数获取活动ID
+    
     const appKey = process.env.JD_APP_KEY;
     const appSecret = process.env.JD_APP_SECRET;
 
@@ -180,18 +182,41 @@ router.get('/products/jd-info/:id', async (req, res) => {
       return res.status(500).json({ code: 500, msg: '系统未配置京东联盟API密钥' });
     }
 
-    // 使用 jd.union.open.goods.bigfield.query 接口，sceneId=1（不需要权限）
-    // 但 sceneId=1 需要联盟商品ID，我们尝试用SKU ID看看能否工作
+    if (!activityId) {
+      return res.status(400).json({ code: 400, msg: '请选择团长活动' });
+    }
+
+    // 获取 access_token
+    const auth = db.prepare('SELECT access_token, expires_at FROM jd_auth ORDER BY id DESC LIMIT 1').get();
+    if (!auth) {
+      return res.status(401).json({ code: 401, msg: '未授权京东联盟账号，请先完成授权' });
+    }
+
+    const expiresAt = new Date(auth.expires_at);
+    if (expiresAt < new Date()) {
+      return res.status(401).json({ code: 401, msg: '授权已过期，请重新授权' });
+    }
+
+    // 使用团长活动商品查询接口
     const paramJson = {
-      goodsReq: {
-        skuIds: [Number(id)],
-        sceneId: 1  // 尝试 sceneId=1
+      cpActivityGoodsReq: {
+        activityId: Number(activityId),
+        skuId: Number(id),
+        type: 0, // 0：提报商品列表
+        pageIndex: 1,
+        pageSize: 1
       }
     };
 
-    const jdRes = await callJdApi('jd.union.open.goods.bigfield.query', paramJson, appKey, appSecret);
+    const jdRes = await callJdApi(
+      'jd.union.open.cp.activity.goods.query',
+      paramJson,
+      appKey,
+      appSecret,
+      auth.access_token
+    );
     
-    const responseKey = 'jd_union_open_goods_bigfield_query_responce';
+    const responseKey = 'jd_union_open_cp_activity_goods_query_responce';
     if (!jdRes[responseKey] || !jdRes[responseKey].queryResult) {
        console.error('JD API Error:', jdRes);
        return res.status(500).json({ code: 500, msg: '获取京东商品信息失败', details: jdRes });
@@ -201,23 +226,23 @@ router.get('/products/jd-info/:id', async (req, res) => {
     const resultObj = JSON.parse(resultStr);
 
     if (resultObj.code === 403) {
-       return res.status(403).json({ code: 403, msg: '京东联盟API无访问权限，请联系京东客服申请权限，或使用手动添加商品功能。', details: resultObj.message });
+       return res.status(403).json({ code: 403, msg: '京东联盟API无访问权限', details: resultObj.message });
     }
 
     if (resultObj.code !== 200 || !resultObj.data || resultObj.data.length === 0) {
-       return res.status(500).json({ code: 500, msg: resultObj.message || '未找到该商品信息，请使用手动添加商品功能。' });
+       return res.status(500).json({ code: 500, msg: resultObj.message || '未找到该商品信息，请确认商品是否在该团长活动中' });
     }
 
     const goodsInfo = resultObj.data[0];
     
     // 提取字段
     const title = goodsInfo.skuName;
-    const image_url = goodsInfo.imageInfo?.imageList?.[0]?.url;
-    const price = goodsInfo.priceInfo?.price;
-    const commission_rate = goodsInfo.commissionInfo?.commissionShare || 0;
-    const service_rate = goodsInfo.commissionInfo?.plusCommissionShare || 0;
-    const start_time = goodsInfo.commissionInfo?.startTime || null;
-    const end_time = goodsInfo.commissionInfo?.endTime || null;
+    const image_url = goodsInfo.imageUrl;
+    const price = goodsInfo.unitPrice;
+    const commission_rate = goodsInfo.commissionRate || 0;
+    const service_rate = goodsInfo.serviceRate || 0;
+    const start_time = goodsInfo.startTime || null;
+    const end_time = goodsInfo.endTime || null;
     
     res.json({ 
       code: 200, 

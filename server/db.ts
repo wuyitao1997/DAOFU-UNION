@@ -170,6 +170,29 @@ export function initDb() {
   addColumn('orders', 'owner', 'TEXT');
   addColumn('orders', 'main_sku_id', 'TEXT');
 
+  // Create tables for JD OAuth and activities
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS jd_auth (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      access_token TEXT NOT NULL,
+      refresh_token TEXT,
+      expires_at DATETIME NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS jd_activities (
+      activity_id TEXT PRIMARY KEY,
+      activity_name TEXT NOT NULL,
+      start_time DATETIME,
+      end_time DATETIME,
+      status TEXT DEFAULT 'active',
+      goods_count INTEGER DEFAULT 0,
+      last_synced_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
   // Create super admin if not exists
   const adminStmt = db.prepare('SELECT id FROM users WHERE role = ?');
   const admin = adminStmt.get('super_admin');
