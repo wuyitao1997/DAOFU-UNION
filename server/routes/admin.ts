@@ -499,7 +499,7 @@ const syncOrdersJob = async () => {
       const orders = resultObj.data || [];
       
       for (const order of orders) {
-        const rid = order.ext1 || '';
+        const rid = order.rid || '';
         
         let status = 'invalid';
         if (order.validCode === 16) status = 'paid';
@@ -640,7 +640,7 @@ router.post('/orders/sync', async (req, res) => {
       const orders = resultObj.data || [];
       
       for (const order of orders) {
-        const rid = order.ext1 || '';
+        const rid = order.rid || '';
         
         // Map JD order status
         // validCode: 15.待付款,16.已付款,17.已完成,18.已退款
