@@ -11,6 +11,8 @@ export default function Products() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [modalError, setModalError] = useState('');
+  const [activities, setActivities] = useState<any[]>([]);
+  const [selectedActivityId, setSelectedActivityId] = useState('');
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -34,7 +36,23 @@ export default function Products() {
 
   useEffect(() => {
     fetchProducts();
+    fetchActivities();
   }, [page]);
+
+  const fetchActivities = async () => {
+    try {
+      const token = localStorage.getItem('admin_token');
+      const res = await fetch('/api/jd-activities/list', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.code === 200) {
+        setActivities(data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load activities:', err);
+    }
+  };
 
   const [formData, setFormData] = useState({
     id: '',
@@ -60,6 +78,11 @@ export default function Products() {
       setModalError('请输入有效的商品ID或链接');
       return;
     }
+
+    if (!selectedActivityId) {
+      setModalError('请先选择团长活动');
+      return;
+    }
     
     // Extract ID if it's a URL or contains non-digits
     if (id.includes('http') || id.includes('jd.com')) {
@@ -80,7 +103,7 @@ export default function Products() {
     setModalError('');
     try {
       const token = localStorage.getItem('admin_token');
-      const res = await fetch(`/api/admin/products/jd-info/${id}`, {
+      const res = await fetch(`/api/admin/products/jd-info/${id}?activityId=${selectedActivityId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -360,6 +383,28 @@ export default function Products() {
             </div>
             <form onSubmit={handleAddProduct} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">选择团长活动 <span className="text-red-500">*</span></label>
+                  <select
+                    required
+                    value={selectedActivityId}
+                    onChange={e => setSelectedActivityId(e.target.value)}
+                    disabled={!!editingProduct}
+                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-[#1677ff] disabled:bg-gray-100"
+                  >
+                    <option value="">请选择活动</option>
+                    {activities.map(activity => (
+                      <option key={activity.activity_id} value={activity.activity_id}>
+                        {activity.activity_name} (ID: {activity.activity_id})
+                      </option>
+                    ))}
+                  </select>
+                  {activities.length === 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      暂无活动，请先前往 <a href="/admin/jd-activities" className="text-blue-500 hover:underline">活动管理</a> 同步活动列表
+                    </p>
+                  )}
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">商品ID <span className="text-red-500">*</span></label>
                   <div className="flex space-x-2">

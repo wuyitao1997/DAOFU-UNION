@@ -19,6 +19,8 @@ import AdminProducts from './pages/admin/Products';
 import AdminActivities from './pages/admin/Activities';
 import AdminOrders from './pages/admin/Orders';
 import AdminSettlements from './pages/admin/Settlements';
+import JDAuth from './pages/admin/JDAuth';
+import JDActivities from './pages/admin/JDActivities';
 
 export default function App() {
   return (
@@ -44,6 +46,8 @@ export default function App() {
           <Route path="activities" element={<AdminActivities />} />
           <Route path="orders" element={<AdminOrders />} />
           <Route path="settlements" element={<AdminSettlements />} />
+          <Route path="jd-auth" element={<JDAuth />} />
+          <Route path="jd-activities" element={<JDActivities />} />
         </Route>
       </Routes>
     </Router>
