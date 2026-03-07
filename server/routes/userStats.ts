@@ -1,7 +1,26 @@
 import express from 'express';
+import jwt from 'jsonwebtoken';
 import db from '../db.js';
 
 const router = express.Router();
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+// Middleware to check user role
+const checkUser = (req: any, res: any, next: any) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ code: 401, msg: 'Unauthorized' });
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded: any = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ code: 401, msg: 'Invalid token' });
+  }
+};
+
+router.use(checkUser);
 
 // 获取用户订单明细
 router.get('/orders', (req, res) => {
