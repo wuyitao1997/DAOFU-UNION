@@ -625,12 +625,12 @@ router.post('/orders/sync', async (req, res) => {
       const jdRes = await callJdApi('jd.union.open.order.row.query', paramJson, appKey, appSecret);
       const responseKey = 'jd_union_open_order_row_query_responce';
       
-      if (!jdRes[responseKey] || !jdRes[responseKey].getResult) {
+      if (!jdRes[responseKey] || !jdRes[responseKey].queryResult) {
         console.error('JD API Error:', jdRes);
         return res.status(500).json({ code: 500, msg: '获取京东订单失败' });
       }
 
-      const resultStr = jdRes[responseKey].getResult;
+      const resultStr = jdRes[responseKey].queryResult;
       const resultObj = JSON.parse(resultStr);
 
       if (resultObj.code !== 200) {
