@@ -5,13 +5,14 @@ import { callJdApi } from '../utils/jdApi.js';
 
 const router = express.Router();
 
-// OAuth 配置
-const JD_APP_KEY = process.env.JD_APP_KEY;
-const JD_APP_SECRET = process.env.JD_APP_SECRET;
-const REDIRECT_URI = process.env.APP_URL || 'http://localhost:3000';
-
 // 步骤1：生成授权URL
 router.get('/authorize-url', (req, res) => {
+  const JD_APP_KEY = process.env.JD_APP_KEY;
+  const REDIRECT_URI = process.env.APP_URL || 'http://localhost:3000';
+  
+  console.log('JD_APP_KEY:', JD_APP_KEY);
+  console.log('REDIRECT_URI:', REDIRECT_URI);
+  
   if (!JD_APP_KEY) {
     return res.status(500).json({ code: 500, msg: '未配置京东联盟AppKey' });
   }
@@ -29,6 +30,9 @@ router.get('/authorize-url', (req, res) => {
 // 步骤2：OAuth 回调
 router.get('/callback', async (req, res) => {
   const { code, state } = req.query;
+  const JD_APP_KEY = process.env.JD_APP_KEY;
+  const JD_APP_SECRET = process.env.JD_APP_SECRET;
+  const REDIRECT_URI = process.env.APP_URL || 'http://localhost:3000';
 
   if (!code) {
     return res.status(400).send('授权失败：缺少授权码');
